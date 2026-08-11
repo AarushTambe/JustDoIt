@@ -1,0 +1,44 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Task {
+  id           String    @id @default(uuid())
+  title        String
+  description  String?
+  dueDate      DateTime?
+  assignedUser String?   // e.g. "User A", "User B"
+  tags         String    @default("[]") // Stored as JSON string of tag strings
+  groupName    String    @default("Aethron")
+  subgroupName String?
+  status       String    @default("TODO") // "TODO" | "IN_PROGRESS" | "DONE"
+  isStarred    Boolean   @default(false)
+  isDeleted    Boolean   @default(false)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([isDeleted, status])
+  @@index([groupName, subgroupName])
+}
+
+model Group {
+  id           String   @id @default(uuid())
+  name         String
+  parentGroup  String?  // null for top-level groups like "Aethron", subgroup name if parent set
+  createdAt    DateTime @default(now())
+
+  @@unique([name, parentGroup])
+}
+
+model UserIdentity {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  role         String   @default("member")
+  createdAt    DateTime @default(now())
+}

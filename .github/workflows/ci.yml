@@ -1,0 +1,40 @@
+name: AeDoit CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Typecheck TypeScript
+        run: npm run typecheck
+
+      - name: Run Unit & Integration Tests
+        run: npm test
+
+      - name: Generate Prisma Database Schema
+        run: npx prisma generate
+
+      - name: Verify Production Next.js Build
+        run: npm run build
+        env:
+          DATABASE_URL: "file:./ci.db"
+          SESSION_SECRET: "ci_testing_session_secret_min_32_chars!"
+          MASTER_PASSWORD: "ci_test_password_2026"
