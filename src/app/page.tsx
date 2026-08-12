@@ -172,7 +172,10 @@ export default function WorkspacePage() {
       });
       if (!res.ok) throw new Error('Failed to create task');
       const created = await res.json();
-      setTasks((prev) => [created, ...prev]);
+      setTasks((prev) => {
+        if (prev.some((t) => t.id === created.id)) return prev;
+        return [created, ...prev];
+      });
     }
   };
 

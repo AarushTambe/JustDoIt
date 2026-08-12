@@ -6,7 +6,7 @@ export type TaskStatus = z.infer<typeof TaskStatusEnum>;
 export const TaskCreateSchema = z.object({
   title: z.string().trim().min(1, 'Task title is required').max(250, 'Title is too long'),
   description: z.string().trim().nullable().optional(),
-  dueDate: z.string().datetime({ offset: true }).or(z.string().date()).nullable().optional(),
+  dueDate: z.string().datetime().or(z.string().datetime({ offset: true })).or(z.string().date()).nullable().optional(),
   assignedUser: z.string().trim().nullable().optional(),
   tags: z.array(z.string().trim()).default([]),
   groupName: z.string().trim().min(1).default('Aethron'),
