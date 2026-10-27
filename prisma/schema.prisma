@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -22,9 +22,35 @@ model Task {
   deletedAt    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  subtasks     Subtask[]
 
   @@index([isDeleted, status])
   @@index([groupName, subgroupName])
+}
+
+model Subtask {
+  id           String   @id @default(uuid())
+  title        String
+  assignedUser String?  // e.g. "User A", "User B"
+  isCompleted  Boolean  @default(false)
+  parentTaskId String
+  parentTask   Task     @relation(fields: [parentTaskId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([parentTaskId])
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @default("")
+  author    String   @default("User A")
+  updatedBy String   @default("User A")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([updatedAt])
 }
 
 model Group {

@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getSession } from '@/lib/auth';
 import { TaskCreateSchema } from '@/lib/validations';
 import { broadcastTaskEvent } from '@/lib/events';
 
 export async function GET(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q')?.trim() || '';
     const group = searchParams.get('group')?.trim() || '';
@@ -38,13 +44,17 @@ export async function GET(request: Request) {
 
     let tasks = await db.task.findMany({
       where,
+      include: {
+        subtasks: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
       orderBy: [
         { isStarred: 'desc' },
         { updatedAt: 'desc' },
       ],
     });
 
-    // In-memory filter for tags & search query for simple, fast matching
     if (q) {
       const lowerQ = q.toLowerCase();
       tasks = tasks.filter((t) => {
@@ -71,6 +81,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const result = TaskCreateSchema.safeParse(body);
 
@@ -93,6 +108,11 @@ export async function POST(request: Request) {
         subgroupName: input.subgroupName ?? null,
         status: input.status,
         isStarred: input.isStarred,
+      },
+      include: {
+        subtasks: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
 

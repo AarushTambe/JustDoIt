@@ -1,7 +1,18 @@
 'use client';
 
-import { Star, CheckCircle, Clock, Tag, Folder, User, Edit3, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Star, CheckCircle, Clock, Tag, Folder, User, Edit3, Trash2, Plus, X, Check } from 'lucide-react';
 import { TaskStatus } from '@/lib/validations';
+
+export interface SubtaskData {
+  id: string;
+  title: string;
+  assignedUser?: string | null;
+  isCompleted: boolean;
+  parentTaskId: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface TaskData {
   id: string;
@@ -17,6 +28,7 @@ export interface TaskData {
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
+  subtasks?: SubtaskData[];
 }
 
 interface TaskItemProps {
@@ -25,6 +37,9 @@ interface TaskItemProps {
   onToggleStar: (id: string, currentStarred: boolean) => void;
   onEdit: (task: TaskData) => void;
   onDelete: (id: string) => void;
+  onSubtaskToggle: (taskId: string, subtaskId: string, isCompleted: boolean) => void;
+  onSubtaskAdd: (taskId: string, title: string, assignedUser: string | null) => void;
+  onSubtaskDelete: (taskId: string, subtaskId: string) => void;
 }
 
 export default function TaskItem({
@@ -33,8 +48,14 @@ export default function TaskItem({
   onToggleStar,
   onEdit,
   onDelete,
+  onSubtaskToggle,
+  onSubtaskAdd,
+  onSubtaskDelete,
 }: TaskItemProps) {
   const isDone = task.status === 'DONE';
+  const [showAddSubtask, setShowAddSubtask] = useState(false);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newSubtaskAssignee, setNewSubtaskAssignee] = useState<string>('Unassigned');
 
   const getStatusBadgeClass = (status: TaskStatus) => {
     switch (status) {
@@ -50,6 +71,17 @@ export default function TaskItem({
         day: 'numeric',
       })
     : null;
+
+  const subtasks = task.subtasks || [];
+  const completedCount = subtasks.filter((s) => s.isCompleted).length;
+
+  const handleAddSubtask = () => {
+    if (!newSubtaskTitle.trim()) return;
+    onSubtaskAdd(task.id, newSubtaskTitle.trim(), newSubtaskAssignee === 'Unassigned' ? null : newSubtaskAssignee);
+    setNewSubtaskTitle('');
+    setNewSubtaskAssignee('Unassigned');
+    setShowAddSubtask(false);
+  };
 
   return (
     <div
@@ -133,6 +165,117 @@ export default function TaskItem({
         </button>
       </div>
 
+      {/* Subtasks Section */}
+      {(subtasks.length > 0 || showAddSubtask) && (
+        <div style={{
+          borderTop: '1px solid var(--border-subtle)',
+          paddingTop: '0.6rem',
+          marginTop: '0.2rem',
+        }}>
+          {subtasks.length > 0 && (
+            <div style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-secondary)',
+              marginBottom: '0.4rem',
+              fontWeight: 500,
+            }}>
+              Subtasks ({completedCount}/{subtasks.length})
+            </div>
+          )}
+
+          {subtasks.map((subtask) => (
+            <div
+              key={subtask.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.3rem 0',
+                fontSize: '0.88rem',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={subtask.isCompleted}
+                onChange={() => onSubtaskToggle(task.id, subtask.id, !subtask.isCompleted)}
+                style={{ width: '16px', height: '16px', cursor: 'pointer', flexShrink: 0 }}
+              />
+              <span style={{
+                flex: 1,
+                textDecoration: subtask.isCompleted ? 'line-through' : 'none',
+                color: subtask.isCompleted ? 'var(--text-tertiary)' : 'var(--text-primary)',
+              }}>
+                {subtask.title}
+              </span>
+              {subtask.assignedUser && (
+                <span style={{
+                  fontSize: '0.7rem',
+                  color: 'var(--accent-blue)',
+                  backgroundColor: 'rgba(0, 113, 227, 0.08)',
+                  padding: '0.1rem 0.4rem',
+                  borderRadius: 'var(--radius-sm)',
+                  flexShrink: 0,
+                }}>
+                  {subtask.assignedUser}
+                </span>
+              )}
+              <button
+                onClick={() => onSubtaskDelete(task.id, subtask.id)}
+                className="btn-icon"
+                title="Remove subtask"
+                style={{ width: '22px', height: '22px', color: 'var(--text-tertiary)', flexShrink: 0 }}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+
+          {showAddSubtask && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              marginTop: '0.4rem',
+            }}>
+              <input
+                type="text"
+                value={newSubtaskTitle}
+                onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                placeholder="Subtask title..."
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddSubtask(); }}
+                style={{ flex: 1, fontSize: '0.85rem', padding: '0.3rem 0.5rem' }}
+                autoFocus
+              />
+              <select
+                value={newSubtaskAssignee}
+                onChange={(e) => setNewSubtaskAssignee(e.target.value)}
+                style={{ fontSize: '0.75rem', padding: '0.3rem 0.4rem' }}
+              >
+                <option value="Unassigned">Unassigned</option>
+                <option value="User A">User A</option>
+                <option value="User B">User B</option>
+              </select>
+              <button
+                onClick={handleAddSubtask}
+                className="btn-icon"
+                title="Add subtask"
+                style={{ width: '26px', height: '26px', color: 'var(--accent-blue)' }}
+              >
+                <Check size={14} />
+              </button>
+              <button
+                onClick={() => { setShowAddSubtask(false); setNewSubtaskTitle(''); }}
+                className="btn-icon"
+                title="Cancel"
+                style={{ width: '26px', height: '26px' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Meta tags and due date */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.6rem', paddingTop: '0.4rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -169,6 +312,15 @@ export default function TaskItem({
 
         {/* Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <button
+            onClick={() => setShowAddSubtask(true)}
+            className="btn-icon"
+            title="Add subtask"
+            style={{ width: '30px', height: '30px', color: 'var(--text-secondary)' }}
+          >
+            <Plus size={15} />
+          </button>
+
           <select
             value={task.status}
             onChange={(e) => onStatusChange(task.id, e.target.value as TaskStatus)}

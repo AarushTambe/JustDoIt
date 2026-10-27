@@ -6,13 +6,15 @@ import Navbar from '@/components/Navbar';
 import TaskItem, { TaskData } from '@/components/TaskItem';
 import TaskModal from '@/components/TaskModal';
 import TrashModal from '@/components/TrashModal';
+import NotesSection, { NoteData } from '@/components/NotesSection';
 import { TaskStatus } from '@/lib/validations';
-import { CheckCircle2, Star, ListFilter, User, Layers, Calendar } from 'lucide-react';
+import { CheckCircle2, Star, ListFilter } from 'lucide-react';
 
 export default function WorkspacePage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<string>('User A');
   const [tasks, setTasks] = useState<TaskData[]>([]);
+  const [notes, setNotes] = useState<NoteData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -67,9 +69,23 @@ export default function WorkspacePage() {
     }
   }, [searchQuery, statusFilter, groupFilter, assigneeFilter, starredFilter]);
 
+  // Fetch shared notes from API
+  const fetchNotes = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notes');
+      if (res.ok) {
+        const data = await res.json();
+        setNotes(data);
+      }
+    } catch (err) {
+      console.error('Failed to load notes:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchTasks();
-  }, [fetchTasks]);
+    fetchNotes();
+  }, [fetchTasks, fetchNotes]);
 
   // Setup Server-Sent Events (SSE) for instant real-time synchronization
   useEffect(() => {
@@ -85,7 +101,7 @@ export default function WorkspacePage() {
       eventSource.addEventListener('taskChange', (event: MessageEvent) => {
         try {
           const changeData = JSON.parse(event.data);
-          const { type, taskId, payload } = changeData;
+          const { type, taskId, noteId, payload } = changeData;
 
           if (type === 'TASK_CREATED' && payload) {
             setTasks((prev) => {
@@ -110,6 +126,48 @@ export default function WorkspacePage() {
               if (prev.some((t) => t.id === taskId)) return prev;
               return [payload, ...prev];
             });
+          } else if (type === 'SUBTASK_CREATED' && payload && taskId) {
+            setTasks((prev) =>
+              prev.map((t) => {
+                if (t.id !== taskId) return t;
+                const existing = t.subtasks || [];
+                if (existing.some((s) => s.id === payload.id)) return t;
+                return { ...t, subtasks: [...existing, payload] };
+              })
+            );
+          } else if (type === 'SUBTASK_UPDATED' && payload && taskId) {
+            setTasks((prev) =>
+              prev.map((t) => {
+                if (t.id !== taskId) return t;
+                const existing = t.subtasks || [];
+                return {
+                  ...t,
+                  subtasks: existing.map((s) => (s.id === payload.id ? payload : s)),
+                };
+              })
+            );
+          } else if (type === 'SUBTASK_DELETED' && payload && taskId) {
+            setTasks((prev) =>
+              prev.map((t) => {
+                if (t.id !== taskId) return t;
+                const existing = t.subtasks || [];
+                return {
+                  ...t,
+                  subtasks: existing.filter((s) => s.id !== payload.id),
+                };
+              })
+            );
+          } else if (type === 'NOTE_CREATED' && payload) {
+            setNotes((prev) => {
+              if (prev.some((n) => n.id === payload.id)) return prev;
+              return [payload, ...prev];
+            });
+          } else if (type === 'NOTE_UPDATED' && payload) {
+            setNotes((prev) =>
+              prev.map((n) => (n.id === payload.id ? payload : n))
+            );
+          } else if (type === 'NOTE_DELETED' && noteId) {
+            setNotes((prev) => prev.filter((n) => n.id !== noteId));
           }
         } catch {
           // ignore
@@ -154,7 +212,6 @@ export default function WorkspacePage() {
   // Task Mutations
   const handleSaveTask = async (taskData: Partial<TaskData>) => {
     if (taskData.id) {
-      // Update existing task
       const res = await fetch(`/api/tasks/${taskData.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -164,7 +221,6 @@ export default function WorkspacePage() {
       const updated = await res.json();
       setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
     } else {
-      // Create new task
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -207,7 +263,112 @@ export default function WorkspacePage() {
     await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
   };
 
-  // Unique groups extract
+  // Subtask Mutations
+  const handleSubtaskAdd = async (taskId: string, title: string, assignedUser: string | null) => {
+    const res = await fetch(`/api/tasks/${taskId}/subtasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, assignedUser }),
+    });
+    if (res.ok) {
+      const created = await res.json();
+      setTasks((prev) =>
+        prev.map((t) => {
+          if (t.id !== taskId) return t;
+          const existing = t.subtasks || [];
+          if (existing.some((s) => s.id === created.id)) return t;
+          return { ...t, subtasks: [...existing, created] };
+        })
+      );
+    }
+  };
+
+  const handleSubtaskToggle = async (taskId: string, subtaskId: string, isCompleted: boolean) => {
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+        return {
+          ...t,
+          subtasks: (t.subtasks || []).map((s) =>
+            s.id === subtaskId ? { ...s, isCompleted } : s
+          ),
+        };
+      })
+    );
+
+    const res = await fetch(`/api/tasks/${taskId}/subtasks/${subtaskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isCompleted }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setTasks((prev) =>
+        prev.map((t) => {
+          if (t.id !== taskId) return t;
+          return {
+            ...t,
+            subtasks: (t.subtasks || []).map((s) => (s.id === subtaskId ? updated : s)),
+          };
+        })
+      );
+    }
+  };
+
+  const handleSubtaskDelete = async (taskId: string, subtaskId: string) => {
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
+        return {
+          ...t,
+          subtasks: (t.subtasks || []).filter((s) => s.id !== subtaskId),
+        };
+      })
+    );
+
+    await fetch(`/api/tasks/${taskId}/subtasks/${subtaskId}`, {
+      method: 'DELETE',
+    });
+  };
+
+  // Shared Note Mutations
+  const handleCreateNote = async (title: string, content: string) => {
+    const res = await fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content }),
+    });
+    if (res.ok) {
+      const created = await res.json();
+      setNotes((prev) => {
+        if (prev.some((n) => n.id === created.id)) return prev;
+        return [created, ...prev];
+      });
+    }
+  };
+
+  const handleUpdateNote = async (id: string, title: string, content: string) => {
+    const res = await fetch(`/api/notes/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+    }
+  };
+
+  const handleDeleteNote = async (id: string) => {
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+  };
+
+  const handleRefreshAll = () => {
+    fetchTasks();
+    fetchNotes();
+  };
+
   const uniqueGroups = Array.from(new Set(tasks.map((t) => t.groupName).filter(Boolean)));
 
   return (
@@ -222,7 +383,7 @@ export default function WorkspacePage() {
         currentUser={currentUser}
         onLogout={handleLogout}
         isConnected={isConnected}
-        onRefresh={fetchTasks}
+        onRefresh={handleRefreshAll}
         onEnableNotifications={handleEnableNotifications}
         notificationsEnabled={notificationsEnabled}
       />
@@ -332,10 +493,21 @@ export default function WorkspacePage() {
                   setIsTaskModalOpen(true);
                 }}
                 onDelete={handleDeleteTask}
+                onSubtaskAdd={handleSubtaskAdd}
+                onSubtaskToggle={handleSubtaskToggle}
+                onSubtaskDelete={handleSubtaskDelete}
               />
             ))}
           </div>
         )}
+
+        {/* Shared Notes Section */}
+        <NotesSection
+          notes={notes}
+          onCreateNote={handleCreateNote}
+          onUpdateNote={handleUpdateNote}
+          onDeleteNote={handleDeleteNote}
+        />
       </main>
 
       {/* Modals */}

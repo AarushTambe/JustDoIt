@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getSession } from '@/lib/auth';
 import { broadcastTaskEvent } from '@/lib/events';
 
 export async function POST(
@@ -7,6 +8,11 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const existingTask = await db.task.findUnique({
       where: { id: params.id },
     });
@@ -24,6 +30,11 @@ export async function POST(
       data: {
         isDeleted: false,
         deletedAt: null,
+      },
+      include: {
+        subtasks: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
 

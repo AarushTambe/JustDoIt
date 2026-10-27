@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getSession } from '@/lib/auth';
 import { TaskUpdateSchema } from '@/lib/validations';
 import { broadcastTaskEvent } from '@/lib/events';
 
@@ -8,8 +9,18 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const task = await db.task.findUnique({
       where: { id: params.id },
+      include: {
+        subtasks: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
     });
 
     if (!task) {
@@ -30,6 +41,11 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const result = TaskUpdateSchema.safeParse(body);
 
@@ -65,6 +81,11 @@ export async function PATCH(
     const updatedTask = await db.task.update({
       where: { id: params.id },
       data: updateData,
+      include: {
+        subtasks: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
     });
 
     const parsedTask = {
@@ -91,6 +112,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const existingTask = await db.task.findUnique({
       where: { id: params.id },
     });
@@ -100,12 +126,16 @@ export async function DELETE(
     }
 
     if (!existingTask.isDeleted) {
-      // Soft deletion to recoverable trash state
       const softDeletedTask = await db.task.update({
         where: { id: params.id },
         data: {
           isDeleted: true,
           deletedAt: new Date(),
+        },
+        include: {
+          subtasks: {
+            orderBy: { createdAt: 'asc' },
+          },
         },
       });
 
@@ -123,7 +153,6 @@ export async function DELETE(
 
       return NextResponse.json({ success: true, mode: 'soft', task: parsedTask });
     } else {
-      // Permanent deletion
       await db.task.delete({
         where: { id: params.id },
       });
