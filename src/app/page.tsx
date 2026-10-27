@@ -388,9 +388,10 @@ export default function WorkspacePage() {
         notificationsEnabled={notificationsEnabled}
       />
 
-      <main style={{ flex: 1, padding: '1.5rem', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
+      <main className="workspace-main" style={{ flex: 1, padding: '1.5rem', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
+        
         {/* Controls & Filter Bar */}
-        <div className="apple-card" style={{ padding: '0.8rem 1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="apple-card workspace-filters" style={{ padding: '0.8rem 1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
               <ListFilter size={16} />
@@ -464,7 +465,7 @@ export default function WorkspacePage() {
             Loading tasks...
           </div>
         ) : tasks.length === 0 ? (
-          <div className="apple-card" style={{ padding: '4rem 2rem', textAlign: 'center', marginTop: '1rem' }}>
+          <div className="apple-card workspace-empty-state" style={{ padding: '4rem 2rem', textAlign: 'center', marginTop: '1rem' }}>
             <CheckCircle2 size={48} style={{ color: 'var(--text-tertiary)', margin: '0 auto 1rem auto' }} />
             <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.4rem' }}>No tasks found</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>

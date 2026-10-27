@@ -1,7 +1,18 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Plus, Trash2, Sun, Moon, LogOut, UserCheck, RefreshCw, Bell } from 'lucide-react';
+import {
+  Search,
+  Plus,
+  Trash2,
+  Sun,
+  Moon,
+  LogOut,
+  UserCheck,
+  RefreshCw,
+  Bell,
+} from 'lucide-react';
 
 interface NavbarProps {
   onSearchChange: (q: string) => void;
@@ -30,8 +41,12 @@ export default function Navbar({
   const [searchValue, setSearchValue] = useState('');
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('aedoit_theme') as 'light' | 'dark' | null;
-    if (savedTheme) {
+    const savedTheme = localStorage.getItem('aedoit_theme') as
+      | 'light'
+      | 'dark'
+      | null;
+
+    if (savedTheme === 'light' || savedTheme === 'dark') {
       setTheme(savedTheme);
       document.documentElement.setAttribute('data-theme', savedTheme);
     }
@@ -45,138 +60,115 @@ export default function Navbar({
   };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setSearchValue(val);
-    onSearchChange(val);
+    const value = e.target.value;
+    setSearchValue(value);
+    onSearchChange(value);
   };
 
   return (
-    <header style={{
-      position: 'sticky',
-      top: 0,
-      zIndex: 100,
-      backgroundColor: 'var(--bg-card)',
-      borderBottom: '1px solid var(--border-subtle)',
-      padding: '0.8rem 1.5rem',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: '1rem',
-      flexWrap: 'wrap',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-        <div style={{
-          fontSize: '1.2rem',
-          fontWeight: 700,
-          letterSpacing: '-0.03em',
-          color: 'var(--text-primary)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-        }}>
-          <span style={{ color: 'var(--accent-blue)' }}>Ae</span>Doit
+    <header className="workspace-header">
+      <div className="navbar-brand-row">
+        <div className="navbar-brand" aria-label="AeDoit workspace">
+          <span className="navbar-brand-ae">Ae</span>Doit
         </div>
 
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.3rem',
-          fontSize: '0.75rem',
-          fontWeight: 500,
-          color: isConnected ? 'var(--accent-success)' : 'var(--text-tertiary)',
-          backgroundColor: isConnected ? 'rgba(52, 199, 89, 0.1)' : 'var(--bg-input)',
-          padding: '0.2rem 0.5rem',
-          borderRadius: '999px',
-        }}>
-          <span style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            backgroundColor: isConnected ? 'var(--accent-success)' : 'var(--text-tertiary)',
-          }} />
-          {isConnected ? 'Live Sync' : 'Reconnecting...'}
+        <div
+          className={`navbar-sync ${isConnected ? 'is-connected' : 'is-disconnected'}`}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="navbar-sync-dot" />
+          {isConnected ? 'Live Sync' : 'Reconnecting…'}
         </div>
       </div>
 
-      <div style={{ flex: 1, maxWidth: '420px', position: 'relative' }}>
+      <div className="navbar-search">
+        <Search size={17} aria-hidden="true" />
         <input
-          type="text"
+          type="search"
           value={searchValue}
           onChange={handleSearch}
           placeholder="Search tasks, groups, tags..."
-          style={{
-            width: '100%',
-            paddingLeft: '2.4rem',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--bg-input)',
-            border: 'none',
-          }}
+          aria-label="Search tasks, groups, and tags"
         />
-        <Search size={16} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+        {searchValue && (
+          <button
+            type="button"
+            className="navbar-clear-search"
+            onClick={() => {
+              setSearchValue('');
+              onSearchChange('');
+            }}
+            aria-label="Clear search"
+          >
+            ×
+          </button>
+        )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+      <div className="navbar-actions">
         <button
+          type="button"
           onClick={onOpenNewTaskModal}
-          className="btn-primary"
-          style={{ padding: '0.5rem 0.9rem', fontSize: '0.85rem' }}
+          className="btn-primary navbar-new-task"
         >
-          <Plus size={16} />
-          New Task
+          <Plus size={17} />
+          <span>New Task</span>
         </button>
 
         <button
+          type="button"
           onClick={onOpenTrashModal}
-          className="btn-icon"
+          className="btn-icon navbar-icon-button"
           title="Trash / Recoverable Deletion"
+          aria-label="Open trash"
         >
           <Trash2 size={18} />
         </button>
 
         <button
+          type="button"
           onClick={onEnableNotifications}
-          className="btn-icon"
-          title={notificationsEnabled ? "Notifications Active" : "Enable Web Notifications"}
-          style={{ color: notificationsEnabled ? 'var(--accent-blue)' : 'var(--text-secondary)' }}
+          className={`btn-icon navbar-icon-button ${notificationsEnabled ? 'is-active' : ''}`}
+          title={notificationsEnabled ? 'Notifications Active' : 'Enable Web Notifications'}
+          aria-label={notificationsEnabled ? 'Notifications active' : 'Enable notifications'}
         >
           <Bell size={18} />
         </button>
 
         <button
+          type="button"
           onClick={onRefresh}
-          className="btn-icon"
-          title="Force Refresh Data"
+          className="btn-icon navbar-icon-button"
+          title="Refresh Data"
+          aria-label="Refresh tasks and notes"
         >
           <RefreshCw size={18} />
         </button>
 
         <button
+          type="button"
           onClick={toggleTheme}
-          className="btn-icon"
+          className="btn-icon navbar-icon-button"
           title="Toggle Light/Dark Theme"
+          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
         >
           {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
+      </div>
 
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.4rem',
-          padding: '0.3rem 0.6rem',
-          backgroundColor: 'var(--bg-input)',
-          borderRadius: 'var(--radius-sm)',
-          fontSize: '0.8rem',
-          fontWeight: 500,
-        }}>
-          <UserCheck size={14} style={{ color: 'var(--accent-blue)' }} />
-          {currentUser}
+      <div className="navbar-account-row">
+        <div className="navbar-user" title={`Signed in as ${currentUser}`}>
+          <UserCheck size={16} aria-hidden="true" />
+          <span>{currentUser}</span>
         </div>
 
         <button
+          type="button"
           onClick={onLogout}
-          className="btn-icon"
+          className="btn-icon navbar-logout"
           title="Sign Out"
-          style={{ color: 'var(--accent-danger)' }}
+          aria-label="Sign out"
         >
           <LogOut size={18} />
         </button>
